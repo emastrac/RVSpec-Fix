@@ -10,7 +10,13 @@ You can find the download for RaveSpan [here](https://users.camk.edu.pl/pilecki/
 4. Optionally, download the template library slib from the same page.
 5. Go to the [Code](https://github.com/emastrac/RVSpec-Fix) section of this repository, and download the files from the green Code dropdown menu.
 6. Extract `ravespan_p3.tgz` and `RVSpec-Fix-main.zip` (it does not matter where).
-7. In the command prompt, `pip install` `matplotlib`, `numpy`, `scipy`, and `PyQt5`
-* If Python 3.9 is not in your PATH, use the installation location identified to do `\path\to\Python39\Scripts\pip.exe install` instead.
-8. In the command prompt, do `python3 setup.py install --user`.
-* If Python 3.9 is not in your PATH, use the installation location identified 
+7. If you would like to use my FITS file conversion script, replace `ravespan_p3/work/specconv.py` with the version in `RVSpec-Fix-main`.
+8. Drag the rest of the `.py` files from `RVSpec-Fix-main` into `ravespan_p3/rvspeclib` and replace the existing library files.
+9. Open a command prompt and `pip install` `matplotlib`, `numpy`, `scipy`, and `PyQt5`.
+* If you had another version of Python installed already, make sure to do this with `\path\to\your\Python\Python39\Scripts\pip.exe install ...` instead.
+10. Do `cd \path\to\your\ravespan_p3` and run `python3 setup.py install --user`
+* Again, if you had another version of Python installed already, do `\path\to\your\Python\Python39\python.exe setup.py install --user`
+* Verify that the patch worked correctly by navigating to `%APPDATA$\Python\Python39\site-packages\rvspeclib` and make sure that the Python files say Edited by Everett Mastracci at the top (except for `__init__.py` and `libdata.py`).
+11. If you downloaded the extra template library, extract it into `ravespan_p3/work`.
+12. You may now move the work directory wherever you like.
+13. To launch RaveSpan, run `\path\to\your\Python\Python39\python.exe %APPDATA$\Python\Python39\Scripts\rvspec.py`.
