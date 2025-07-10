@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+5#! /usr/bin/env python3
 
 ###############################################
 #                                             #
@@ -59,11 +59,15 @@ def get_fileholder(fname):
         sys.exit(0)
 
 args = sys.argv[1:]
-args = ["dao.fits"]
 
 if len(args) == 0:
-    print("No filename given.")
+    print("No mode given. (object/template)")
     sys.exit()
+elif len(args) == 1:
+    print("No filename given.")
+
+mode = args[0]
+args = args[1:]
 
 # ITERATE THROUGH FILES GIVEN AS ARGUMENTS:
 # e.g.
@@ -87,23 +91,8 @@ for ia,fname in enumerate(args):
     # BARY_CORR = ...       // barycentric correction (in km/s) 
     # INSTRUMENT = ...      // instrument name
     # ...
-    obs_time = 0
     lambda_0 = 0
     resolution = 0
-    barycorr = 0
-    instrument = ""
-    obs_date_keywords = ["DATE-OBS", "TIME-OBS", "TIME-END", "DATE-END"]
-    lambda_0_keywords = ["WAVELENG"]
-    date_found = False
-    lambda_0_found = False
-    for key in obs_date_keywords:
-        if key in pheader.keys():
-            obs_time = Time(pheader[key], format="fits", scale="utc").jd
-            date_found = True
-    if not date_found:
-        print(f"Observation date not found in header for file {fname}. Please enter the date in Julian Date (JD) format:")
-        obs_time = float(input())
-
     if "WAVELENG" in pheader.keys() and "REFPIXEL" in pheader.keys() and "DELTA_WL" in pheader.keys():
         lambda_0 = pheader["WAVELENG"] - (pheader["REFPIXEL"]*pheader["DELTA_WL"])
     else:
@@ -116,17 +105,31 @@ for ia,fname in enumerate(args):
         print(f"Resolution not found in header for file {fname}. Please enter the resolution in angstroms per pixel:")
         resolution = float(input())
 
-    if "VHELIO" in pheader.keys():
-        barycorr = pheader["VHELIO"]
-    else:
-        print(f"Barycentric correction data not found in header for file {fname}. Please enter the value in kilometers per second:")
-        barycorr = float(input())
+    if mode == "object":
+        obs_time = 0
+        barycorr = 0
+        instrument = ""
+        obs_date_keywords = ["DATE-OBS", "TIME-OBS", "TIME-END", "DATE-END"]
+        date_found = False
+        for key in obs_date_keywords:
+            if key in pheader.keys():
+                obs_time = Time(pheader[key], format="fits", scale="utc").jd
+                date_found = True
+        if not date_found:
+            print(f"Observation date not found in header for file {fname}. Please enter the date in Julian Date (JD) format:")
+            obs_time = float(input())
 
-    if "INSTRUME" in pheader.keys():
-        instrument = pheader["INSTRUME"]
-    else:
-        print(f"Instrument not found in header for file {fname}. Please enter the name of the instrument used for the observation:")
-        instrument = input()
+        if "VHELIO" in pheader.keys():
+            barycorr = pheader["VHELIO"]
+        else:
+            print(f"Barycentric correction data not found in header for file {fname}. Please enter the value in kilometers per second:")
+            barycorr = float(input())
+
+        if "INSTRUME" in pheader.keys():
+            instrument = pheader["INSTRUME"]
+        else:
+            print(f"Instrument not found in header for file {fname}. Please enter the name of the instrument used for the observation:")
+            instrument = input()
 
     # GET SPECTRUM
     spec = pyf[0].data
@@ -148,22 +151,28 @@ for ia,fname in enumerate(args):
     # * instrument - instrument name
     # e.g.
     # 7234.12334_4501.12345431_0.01555_-2.123_HARPS
-    filename = '%.5f_'%obs_time+str(lambda_0)+'_'+str(resolution)+'_'+'%.3f'%(barycorr)+'_'+instrument
+    object_name = fname.split('_')[0].split('.')[0]
+    if mode == "object":
+        filename = '%.5f_'%obs_time+str(lambda_0)+'_'+str(resolution)+'_'+'%.3f'%(barycorr)+'_'+instrument
+    else:
+        filename = object_name+'_'+str(lambda_0)+'_'+str(resolution)
 
 
     # SAVE SPECTRUM AS A BINARY FILE
-    if '_' in fname:
-        object_name = fname.split('_')[0]
-        path = "specdb" + '/' + object_name + '/'
+    if mode == "object":
+        if '_' in fname:
+            path = "specdb" + '/' + object_name
+        else:
+            path = "specdb" + '/' + fname.split(".")[0]
     else:
-        path = "specdb" + '/' + fname.split(".")[0] + '/'
+        path = "templates"
     os.makedirs(path, exist_ok=True)
-    array(spec, float32).tofile(path + filename)
+    array(spec, float32).tofile(path + '/' + filename)
 
     # THEN COPY IT TO THE CORRESPONDING DIRECTORY IN specdb/
     # e.g. /home/user/ravespan/specdb/object_name/7234.12334_4501.12345431_0.01555_-2.123_HARPS
 
-    print("   ---->", path + filename)
+    print("   ---->", path + '/' + filename)
 
 
 
