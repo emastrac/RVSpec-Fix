@@ -19,4 +19,10 @@ You can find the download for RaveSpan [here](https://users.camk.edu.pl/pilecki/
 * Verify that the patch worked correctly by navigating to `%APPDATA$\Python\Python39\site-packages\rvspeclib` and make sure that the Python files say Edited by Everett Mastracci at the top (except for `__init__.py` and `libdata.py`).
 11. If you downloaded the extra template library, extract it into `ravespan_p3/work`.
 12. You may now move the work directory wherever you like.
-13. To launch RaveSpan, run `\path\to\your\Python\Python39\python.exe %APPDATA$\Python\Python39\Scripts\rvspec.py`.
+13. To launch RaveSpan, run `\path\to\your\Python\Python39\python.exe %APPDATA$\Python\Python39\Scripts\rvspec` from your work directory. You may want to create a batch file to do this for you.
+
+### Linux
+Will create guide if people want it. Mostly the same process as Windows.
+
+## FITS File Conversion
+RaveSpan cannot parse FITS files, it needs to convert them into raw data first. To do this, run `python3 specconv.py yourfile.fits yourfile2.fits ...` in your work directory. I have set up the conversion script to attempt to automatically pick up header data to format the file title the way RaveSpan requires, but your mileage may vary. Ensure that the file output follows the form OBSERVATIONDATE_
