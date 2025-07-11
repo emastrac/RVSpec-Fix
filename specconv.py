@@ -44,6 +44,8 @@
 
 from astropy.io import fits as pyfits
 from astropy.time import Time
+from astropy.coordinates import SkyCoord, EarthLocation
+from astropy import units as u
 import sys
 from numpy import *
 import os
@@ -80,8 +82,16 @@ for ia,fname in enumerate(args):
     # OPEN FILE
     pyf = get_fileholder(fname)
 
+    # GET SPECTRUM
+    spec = pyf[0].data
+    if isinstance(spec[0], ndarray):
+        #spec = spec[int(len(spec)/2)]
+        spec = spec[206]
+        spec = flip(spec)
+        spec = spec[35:2700]
 
     # GET HEADER
+    pyf.verify("fix")
     pheader = pyf[0].header
     # GET ALL THE NECESSARY DATA FROM THE HEADER
     # ...
@@ -93,34 +103,57 @@ for ia,fname in enumerate(args):
     # ...
     lambda_0 = 0
     resolution = 0
-    if "WAVELENG" in pheader.keys() and "REFPIXEL" in pheader.keys() and "DELTA_WL" in pheader.keys():
-        lambda_0 = pheader["WAVELENG"] - (pheader["REFPIXEL"]*pheader["DELTA_WL"])
+    if "DELTA_WL" in pheader.keys():
+        resolution = float(pheader["DELTA_WL"])
+    elif "SP-RESOL" in pheader.keys():
+        resolution = float(pheader["SP-RESOL"])
+    else:
+        print(f"Resolution not found in header for file {fname}. Please enter the resolution in angstroms per pixel:")
+        resolution = float(input())
+
+    if "WAVELENG" in pheader.keys() and "REFPIXEL" in pheader.keys():
+        lambda_0 = pheader["WAVELENG"] - (pheader["REFPIXEL"]*resolution)
+    elif "GRATING" in pheader.keys() and "GR-ORDER" in pheader.keys() and "GR-ANGLE" in pheader.keys():
+        grating_coefficient = 1/float(pheader["GRATING"]*1000)
+        angle_inc = float(pheader["GR-ANGLE"])*pi/180
+        lambda_0 = (grating_coefficient*2*sin(angle_inc)/float(pheader["GR-ORDER"]))*1e10 - (len(spec)*resolution)/2
     else:
         print(f"Wavelength data not found in header for file {fname}. Please enter the lowest wavelength in the spectrum in angstroms:")
         lambda_0 = float(input())
 
-    if "DELTA_WL" in pheader.keys():
-        resolution = pheader["DELTA_WL"]
+    if "OBJECT" in pheader.keys():
+        object_name = pheader["OBJECT"]
     else:
-        print(f"Resolution not found in header for file {fname}. Please enter the resolution in angstroms per pixel:")
-        resolution = float(input())
+        print(f"Object name not found in header for file {fname}. Please enter it:")
+        object_name = input()
 
     if mode == "object":
         obs_time = 0
         barycorr = 0
         instrument = ""
-        obs_date_keywords = ["DATE-OBS", "TIME-OBS", "TIME-END", "DATE-END"]
+        obs_date_keywords = ["JD", "DATE-OBS", "TIME-OBS", "TIME-END", "DATE-END"]
         date_found = False
         for key in obs_date_keywords:
-            if key in pheader.keys():
-                obs_time = Time(pheader[key], format="fits", scale="utc").jd
+            if key in pheader.keys() and not date_found:
+                if key == "JD": 
+                    obs_time = pheader["JD"]
+                else:
+                    obs_time = Time(pheader[key], format="fits", scale="utc").jd
                 date_found = True
         if not date_found:
             print(f"Observation date not found in header for file {fname}. Please enter the date in Julian Date (JD) format:")
             obs_time = float(input())
-
         if "VHELIO" in pheader.keys():
-            barycorr = pheader["VHELIO"]
+            barycorr = float(pheader["VHELIO"])
+        elif "LATITUDE" in pheader.keys() and "LONGITUD" in pheader.keys() and "RA" in pheader.keys() and "DEC" in pheader.keys():
+            sc = SkyCoord(pheader["RA"], pheader["DEC"], unit=(u.hourangle, u.deg))
+            try:
+                obs_site = EarthLocation.from_geodetic(pheader["LATITUDE"], pheader["LONGITUD"])
+            except:
+                print("Error querying EarthLocation. Please enter the barycentric correction manually in km/s:")
+                barycorr = float(input())
+            else:
+                barycorr = sc.radial_velocity_correction("barycentric", Time(obs_time, format = "jd"), obs_site).value/1000
         else:
             print(f"Barycentric correction data not found in header for file {fname}. Please enter the value in kilometers per second:")
             barycorr = float(input())
@@ -131,8 +164,6 @@ for ia,fname in enumerate(args):
             print(f"Instrument not found in header for file {fname}. Please enter the name of the instrument used for the observation:")
             instrument = input()
 
-    # GET SPECTRUM
-    spec = pyf[0].data
     # TRANSFORM THE SPECTRUM IF NECESSARY
     # RaveSpan only reads uniformly sampled spectra,
     # if your spectra have non-uniform sampling,
@@ -151,7 +182,6 @@ for ia,fname in enumerate(args):
     # * instrument - instrument name
     # e.g.
     # 7234.12334_4501.12345431_0.01555_-2.123_HARPS
-    object_name = fname.split('_')[0].split('.')[0]
     if mode == "object":
         filename = '%.5f_'%obs_time+str(lambda_0)+'_'+str(resolution)+'_'+'%.3f'%(barycorr)+'_'+instrument
     else:
@@ -160,19 +190,18 @@ for ia,fname in enumerate(args):
 
     # SAVE SPECTRUM AS A BINARY FILE
     if mode == "object":
-        if '_' in fname:
-            path = "specdb" + '/' + object_name
-        else:
-            path = "specdb" + '/' + fname.split(".")[0]
+        path = "specdb" + '/' + object_name
     else:
         path = "templates"
     os.makedirs(path, exist_ok=True)
     array(spec, float32).tofile(path + '/' + filename)
+    open("objects/" + object_name + ".obj", 'a').close()
 
     # THEN COPY IT TO THE CORRESPONDING DIRECTORY IN specdb/
     # e.g. /home/user/ravespan/specdb/object_name/7234.12334_4501.12345431_0.01555_-2.123_HARPS
 
     print("   ---->", path + '/' + filename)
+    print("   ---->", "objects/" + object_name + ".obj")
 
 
 
