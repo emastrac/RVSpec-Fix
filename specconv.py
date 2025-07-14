@@ -90,6 +90,9 @@ for ia,fname in enumerate(args):
         spec = flip(spec)
         spec = spec[35:2700]
 
+    if mode == "template":
+        spec = divide(spec, median(spec))
+
     # GET HEADER
     pyf.verify("fix")
     pheader = pyf[0].header
@@ -103,7 +106,9 @@ for ia,fname in enumerate(args):
     # ...
     lambda_0 = 0
     resolution = 0
-    if "DELTA_WL" in pheader.keys():
+    if "CDELT1" in pheader.keys():
+        resolution = float(pheader["CDELT1"])
+    elif "DELTA_WL" in pheader.keys():
         resolution = float(pheader["DELTA_WL"])
     elif "SP-RESOL" in pheader.keys():
         resolution = float(pheader["SP-RESOL"])
@@ -111,12 +116,11 @@ for ia,fname in enumerate(args):
         print(f"Resolution not found in header for file {fname}. Please enter the resolution in angstroms per pixel:")
         resolution = float(input())
 
-    if "WAVELENG" in pheader.keys() and "REFPIXEL" in pheader.keys():
+    if "CRPIX1" in pheader.keys() and "CRVAL1" in pheader.keys():
+        spec = spec[int(pheader["CRPIX1"]) - 1:]
+        lambda_0 = pheader["CRVAL1"]
+    elif "WAVELENG" in pheader.keys() and "REFPIXEL" in pheader.keys():
         lambda_0 = pheader["WAVELENG"] - (pheader["REFPIXEL"]*resolution)
-    elif "GRATING" in pheader.keys() and "GR-ORDER" in pheader.keys() and "GR-ANGLE" in pheader.keys():
-        grating_coefficient = 1/float(pheader["GRATING"]*1000)
-        angle_inc = float(pheader["GR-ANGLE"])*pi/180
-        lambda_0 = (grating_coefficient*2*sin(angle_inc)/float(pheader["GR-ORDER"]))*1e10 - (len(spec)*resolution)/2
     else:
         print(f"Wavelength data not found in header for file {fname}. Please enter the lowest wavelength in the spectrum in angstroms:")
         lambda_0 = float(input())
@@ -200,14 +204,10 @@ for ia,fname in enumerate(args):
     # THEN COPY IT TO THE CORRESPONDING DIRECTORY IN specdb/
     # e.g. /home/user/ravespan/specdb/object_name/7234.12334_4501.12345431_0.01555_-2.123_HARPS
 
+    if mode == "object":
+        print("   ---->", "objects/" + object_name + ".obj")
     print("   ---->", path + '/' + filename)
-    print("   ---->", "objects/" + object_name + ".obj")
-
-
 
 ###############
 ### THE END ###
 ###############
-
-
-
