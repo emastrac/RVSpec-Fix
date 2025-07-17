@@ -423,7 +423,7 @@ def newton(func, x0, fprime=None, args=(), tol=1.48e-8, maxiter=50):
             q0 = q1
             p1 = p
             q1 = func(*((p1,)+args))
-    raise RuntimeError("Failed to converge after %d iterations, value is %s" % (maxiter,p))
+    raise RuntimeError("Failed to converge after" + str(iter) + "iterations, value is" + str(p))
     
     
     
