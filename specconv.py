@@ -47,8 +47,9 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation
 from astropy import units as u
 import sys
-from numpy import *
+import numpy as np
 import os
+from scipy import interpolate
 
 
 #####################################################
@@ -62,14 +63,20 @@ def get_fileholder(fname):
 
 args = sys.argv[1:]
 
-if len(args) == 0:
-    print("No mode given. (object/template)")
-    sys.exit()
-elif len(args) == 1:
-    print("No filename given.")
-
-mode = args[0]
-args = args[1:]
+if len(args) < 2:
+    good_input = False
+    while not good_input:
+        print("Please enter the file mode: (object/template)")
+        mode = input()
+        if not (mode == "object" or mode == "template"):
+            print("Bad input. Try again:")
+        else:
+            good_input = True
+    print("Please enter the FITS file name(s) to process:")
+    args = input().split(' ')
+else:
+    mode = args[0]
+    args = args[1:]
 
 # ITERATE THROUGH FILES GIVEN AS ARGUMENTS:
 # e.g.
@@ -84,14 +91,21 @@ for ia,fname in enumerate(args):
 
     # GET SPECTRUM
     spec = pyf[0].data
-    if isinstance(spec[0], ndarray):
-        #spec = spec[int(len(spec)/2)]
-        spec = spec[206]
-        spec = flip(spec)
-        spec = spec[35:2700]
-
+    NaN_count = 0
+    for i in range(0, len(spec)):
+        if np.isnan(spec[i]):
+            spec[i] = np.median(spec[~np.isnan(spec)])
+            NaN_count = NaN_count + 1
+    print("WARNING! Replaced " + str(NaN_count) + " NaN values.")
+    if isinstance(spec[0], np.ndarray):
+        lambda_0 = spec[3][0]*10
+        unique_wavelengths, unique_flux_indices = np.unique(spec[3], return_index=True)
+        wavelengths_resamp = np.linspace(spec[3][0], spec[3][spec[3].size - 1], spec[3].size)
+        diff = np.diff(wavelengths_resamp)
+        spec = interpolate.PchipInterpolator(unique_wavelengths, spec[4][unique_flux_indices])(wavelengths_resamp)
+        
     if mode == "template":
-        spec = divide(spec, median(spec))
+        spec = np.divide(spec, np.median(spec))
 
     # GET HEADER
     pyf.verify("fix")
@@ -105,7 +119,7 @@ for ia,fname in enumerate(args):
     # INSTRUMENT = ...      // instrument name
     # ...
     lambda_0 = 0
-    resolution = 0
+    # resolution = np.diff(wavelengths_resamp)[0]*10
     if "CDELT1" in pheader.keys():
         resolution = float(pheader["CDELT1"])
     elif "DELTA_WL" in pheader.keys():
@@ -198,7 +212,7 @@ for ia,fname in enumerate(args):
     else:
         path = "templates"
     os.makedirs(path, exist_ok=True)
-    array(spec, float32).tofile(path + '/' + filename)
+    np.array(spec, np.float32).tofile(path + '/' + filename)
     open("objects/" + object_name + ".obj", 'a').close()
 
     # THEN COPY IT TO THE CORRESPONDING DIRECTORY IN specdb/
