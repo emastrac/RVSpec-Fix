@@ -763,7 +763,7 @@ class TemplateDialog(QtWidgets.QDialog):
         for v3 in all_values[k3]:
             for v2 in all_values[k2]:
                 for v1 in all_values[k1]:
-                    strlist = list(map(str, [v1,v2,v3]) + [self.w0] + [self.res])
+                    strlist = list(map(str, [v1,v2,v3])) + [self.w0] + [self.res]
                     tname = "_".join(strlist)
                     tpath = self.main.slibdir + "/" + tname
                     dtfiles += [np.fromfile(tpath,dtype=np.float32)] # fromfile, float32 not defined
